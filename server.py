@@ -125,6 +125,24 @@ def kp():
     return _kp["v"]
 
 
+_bg = {"running": False}
+def start_bg_refresh():
+    global _fail_until
+    if _bg["running"]:
+        return
+    _bg["running"] = True
+    def work():
+        global _fail_until
+        try:
+            if not refresh():
+                _fail_until = time.time() + BACKOFF
+        except Exception as e:
+            print("background refresh failed", e); _fail_until = time.time() + BACKOFF
+        finally:
+            _bg["running"] = False
+    threading.Thread(target=work, daemon=True).start()
+
+
 def get_catalog():
     """Returns the catalog plus provenance: source = live | cache, fetched (unix s), age_h, note."""
     global _fail_until
@@ -134,12 +152,16 @@ def get_catalog():
     source = "cache"
     stale = (not cat) or (time.time() - cat["fetched"] > TTL)
     if stale and not OFFLINE and time.time() >= _fail_until:
-        new = refresh()
-        if new:
-            cat, source = new, "live"
-        else:
-            _fail_until = time.time() + BACKOFF
-            note = "CelesTrak unreachable; serving the last cached snapshot."
+        if cat is None:   # nothing cached at all: we have to wait for the first download
+            new = refresh()
+            if new:
+                cat, source = new, "live"
+            else:
+                _fail_until = time.time() + BACKOFF
+                note = "CelesTrak unreachable and no cache."
+        else:             # serve the cache NOW, refresh in the background for the next load
+            start_bg_refresh()
+            note = "Cache is older than 2 h; a fresh download is running in the background. Reload in a minute for fresh TLEs."
     elif stale and OFFLINE:
         note = "Offline mode: serving the cached snapshot."
     elif stale:
