@@ -223,7 +223,7 @@ Astravynn is an independent project and is not affiliated with or endorsed by Ce
 
 **Soham Patil**\
 **Sakshi Kumbhar**\
-**Vedika Kadam**\
+**Vedika Kadam**
 
 Computer Science & Engineering — Artificial Intelligence and Machine Learning
 
